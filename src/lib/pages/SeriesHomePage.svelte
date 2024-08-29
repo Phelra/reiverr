@@ -70,7 +70,7 @@
 						<JellyfinCard on:enter={scrollIntoView({ horizontal: 128 })} size="lg" {item} />
 					{/each}
 				</Carousel>
-			{:else}je
+			{:else}
 				{#await recentlyAdded then recentlyAdded}
 					{#if recentlyAdded?.length}
 						<Carousel scrollClass="px-32" on:enter={scrollIntoView({ vertical: 128 })}>
