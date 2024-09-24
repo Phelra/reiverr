@@ -3,6 +3,7 @@ import { get } from 'svelte/store';
 import type { components, paths } from './jellyfin.generated';
 import type { Api } from '../api.interface';
 import { user } from '../../stores/user.store';
+import { generalSettings } from '../../stores/generalSettings.store';
 import type { DeviceProfile } from './playback-profiles';
 import axios from 'axios';
 import { log } from '../../utils';
@@ -16,7 +17,7 @@ export const JELLYFIN_DEVICE_ID = 'Reiverr Client';
 
 export class JellyfinApi implements Api<paths> {
 	getClient() {
-		const jellyfinSettings = get(user)?.settings.jellyfin;
+		const jellyfinSettings = get(generalSettings)?.data?.integrations?.jellyfin;
 		const baseUrl = jellyfinSettings?.baseUrl;
 		const apiKey = jellyfinSettings?.apiKey;
 
@@ -33,11 +34,11 @@ export class JellyfinApi implements Api<paths> {
 	}
 
 	getApiKey() {
-		return get(user)?.settings.jellyfin.apiKey || '';
+		return get(generalSettings)?.data?.integrations?.jellyfin?.apiKey || '';
 	}
 
 	getBaseUrl() {
-		return get(user)?.settings.jellyfin.baseUrl || '';
+		return get(generalSettings)?.data?.integrations?.jellyfin?.baseUrl || '';
 	}
 
 	getContinueWatching = async (type?: Type): Promise<JellyfinItem[] | undefined> =>
@@ -58,11 +59,14 @@ export class JellyfinApi implements Api<paths> {
 
 	getContinueWatchingSeries = async () => {
 		const seriesIds = [
-			...new Set(
-				await this.getContinueWatching('series')
+			...new Set([
+				...(await this.getContinueWatching('series')
 					.then((items) => items?.map((i) => i.SeriesId) || [])
-					.then((ids) => ids.filter((i) => !!i) as string[])
-			)
+					.then((ids) => ids.filter((i) => !!i) as string[])),
+				...(await this.getJellyfinNextUp()
+					.then((items) => items?.map((i) => i.SeriesId) || [])
+					.then((ids) => ids.filter((i) => !!i) as string[]))
+			])
 		];
 
 		return Promise.all(seriesIds.map((id) => this.getLibraryItem(id))).then((is) =>
@@ -101,8 +105,9 @@ export class JellyfinApi implements Api<paths> {
 	}
 
 	getPosterUrl(item: JellyfinItem, quality = 100, original = false) {
+		const baseUrl = get(generalSettings)?.data?.integrations?.jellyfin?.baseUrl || '';
 		return item.ImageTags?.Primary
-			? `${get(user)?.settings.jellyfin.baseUrl}/Items/${
+			? `${baseUrl}/Items/${
 					item?.Id
 			  }/Images/Primary?quality=${quality}${original ? '' : '&fillWidth=432'}&tag=${
 					item?.ImageTags?.Primary

@@ -6,7 +6,7 @@ import type { components, paths } from './radarr.generated';
 import { getTmdbMovie } from '../tmdb/tmdb-api';
 import { log } from '../../utils';
 import type { Api } from '../api.interface';
-import { user } from '../../stores/user.store';
+import { generalSettings } from '../../stores/generalSettings.store';
 
 export const movieAvailabilities = [
 	// 'tba',
@@ -39,7 +39,7 @@ export interface RadarrMovieOptions {
 
 export class RadarrApi implements Api<paths> {
 	getClient() {
-		const radarrSettings = get(user)?.settings.radarr;
+		const radarrSettings = get(generalSettings)?.data?.integrations?.radarr; // Utilisation de generalSettings
 		const baseUrl = radarrSettings?.baseUrl;
 		const apiKey = radarrSettings?.apiKey;
 
@@ -52,11 +52,11 @@ export class RadarrApi implements Api<paths> {
 	}
 
 	getBaseUrl() {
-		return get(user)?.settings?.radarr.baseUrl || '';
+		return get(generalSettings)?.data?.integrations?.radarr?.baseUrl || ''; // Utilisation de generalSettings
 	}
 
 	getSettings() {
-		return get(user)?.settings.radarr;
+		return get(generalSettings)?.data?.integrations?.radarr; // Utilisation de generalSettings
 	}
 
 	getMovieByTmdbId = (tmdbId: number): Promise<RadarrMovie | undefined> =>
@@ -217,6 +217,52 @@ export class RadarrApi implements Api<paths> {
 	getRadarrDownloadsByTmdbId = (tmdbId: number) =>
 		this.getDownloads().then((downloads) => downloads.filter((d) => d.movie.tmdbId === tmdbId));
 
+
+
+	getDownloadProgressForMovie = async (movieId: number): Promise<{ progress: number, timeLeft: any, estimatedCompletionTime: string } | null> => {
+		const downloads = await this.getDownloads(); // Récupérer tous les téléchargements en cours
+		
+		// Filtrer les téléchargements pour obtenir uniquement ceux du film spécifié
+		const downloadsForMovie = downloads.filter(
+		  (download) => download.movie.id === movieId
+		);
+		
+		if (downloadsForMovie.length === 0) {
+		  return null; // Aucun téléchargement en cours pour ce film
+		}
+	
+		// Initialiser les variables pour les calculs
+		let totalSize = 0;
+		let totalDownloaded = 0;
+		let timeLeft = null;
+		let estimatedCompletionTime = "";
+	
+		// Parcourir les téléchargements pour ce film et cumuler les informations
+		downloadsForMovie.forEach((download) => {
+		  const size = download.size || 1; // Utiliser 1 par défaut pour éviter la division par zéro
+		  const sizeLeft = download.sizeleft || 0;
+	
+		  // On prend la première valeur de estimatedCompletionTime qui est disponible
+		  if (!estimatedCompletionTime && download.estimatedCompletionTime) {
+			estimatedCompletionTime = download.estimatedCompletionTime;
+		  }
+	
+		  // On prend simplement le temps brut tel qu'il est fourni dans 'timeleft'
+		  timeLeft = download.timeleft;
+	
+		  totalSize += size;
+		  totalDownloaded += size - sizeLeft;
+		});
+	
+		// Calculer le pourcentage de progression global
+		const progress = (totalDownloaded / totalSize) * 100;
+	
+		// Retourner les informations avec le temps brut 'timeleft'
+		return { progress: Math.round(progress), timeLeft, estimatedCompletionTime };
+	};
+
+
+
 	private lookupRadarrMovieByTmdbId = (tmdbId: number) =>
 		this.getClient()
 			?.GET('/api/v3/movie/lookup/tmdb', {
@@ -277,10 +323,10 @@ export class RadarrApi implements Api<paths> {
 	) =>
 		axios
 			.get<components['schemas']['QualityProfileResource'][]>(
-				(baseUrl || get(user)?.settings.radarr.baseUrl) + '/api/v3/qualityprofile',
+				(baseUrl || get(generalSettings)?.data?.integrations?.radarr?.baseUrl) + '/api/v3/qualityprofile',
 				{
 					headers: {
-						'X-Api-Key': apiKey || get(user)?.settings.radarr.apiKey
+						'X-Api-Key': apiKey || get(generalSettings)?.data?.integrations?.radarr?.apiKey
 					}
 				}
 			)
@@ -296,6 +342,9 @@ export class RadarrApi implements Api<paths> {
 		return url;
 	}
 }
+
+
+
 
 export const radarrApi = new RadarrApi();
 export const radarrApiClient = radarrApi.getClient;

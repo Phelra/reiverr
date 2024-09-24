@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Container from '../../Container.svelte';
 	import Button from '../components/Button.svelte';
+	import TextField from '../components/TextField.svelte';
 	import Toggle from '../components/Toggle.svelte';
 	import { localSettings } from '../stores/localstorage.store';
 	import classNames from 'classnames';
@@ -23,10 +24,14 @@
 	import { scrollIntoView } from '../selectable';
 	import { reiverrApi } from '../apis/reiverr/reiverr-api';
 	import TmdbIntegration from '../components/Integrations/TmdbIntegration.svelte';
+	import RequestSettings from '../components/Requests/RequestSettings.svelte';
+	import { sonarrApi } from '../apis/sonarr/sonarr-api';
+
 
 	enum Tabs {
 		Interface,
 		Account,
+		RequestSettings,
 		About
 	}
 
@@ -41,6 +46,36 @@
 	function getUsers() {
 		return $user?.isAdmin ? reiverrApi.getUsers() : undefined;
 	}
+
+	const fetchSettings = async () => {
+	const response = await reiverrApi.getSettings();
+	if (response.settings) {
+		console.log('Current Settings:', response.settings);
+	} else {
+		console.error('Error fetching settings:', response.error);
+	}
+	};
+
+	fetchSettings();
+
+	(async () => {
+  // Récupération des téléchargements
+  const downloads = await sonarrApi.getDownloads();
+  console.log("downloads", downloads);
+
+  // Récupération des informations de téléchargement pour une série et une saison spécifique
+  const downloadInfo = await sonarrApi.getDownloadProgressForSeason(184, 2);
+
+  // Vérification et affichage des informations
+  if (downloadInfo) {
+    console.log(`Progress: ${downloadInfo.progress}%`);
+    console.log(`Time left: ${downloadInfo.timeLeft}`);
+	console.log(`Estimated Time: ${downloadInfo.estimatedCompletionTime}`);
+  } else {
+    console.log('No downloads in progress for this season.');
+  }
+})();
+
 
 	function handleLogOut() {
 		sessions.removeSession();
@@ -102,6 +137,20 @@
 				})}
 			>
 				Accounts
+			</span>
+		</Container>
+		<Container
+			on:enter={() => tab.set(Tabs.RequestSettings)}
+			on:clickOrSelect={() => tab.set(Tabs.RequestSettings)}
+			let:hasFocus
+			focusOnClick>
+			<span
+				class={classNames('cursor-pointer', {
+					'text-secondary-400': $tab !== Tabs.RequestSettings,
+					'text-primary-500': hasFocus
+				})}
+			>
+				Request
 			</span>
 		</Container>
 		<Container
@@ -218,27 +267,23 @@
 			<div>
 				<h1 class="font-semibold text-2xl text-secondary-100 mb-8">Integrations</h1>
 				<Container direction="horizontal" class="gap-16 grid grid-cols-2">
-					<Container class="flex flex-col space-y-16">
-						<Container
-							class="bg-primary-800 rounded-xl p-8"
-							on:enter={scrollIntoView({ vertical: 64 })}
-						>
-							<h1 class="mb-4 header1">Sonarr</h1>
-							<SonarrIntegration let:stale let:handleSave>
-								<Button disabled={!stale} type="primary-dark" action={handleSave}>Save</Button>
-							</SonarrIntegration>
-						</Container>
+						{#if $user?.isAdmin}
+							<Container class="flex flex-col space-y-16">
+								<Container class="bg-primary-800 rounded-xl p-8" on:enter={scrollIntoView({ vertical: 64 })}>
+									<h1 class="mb-4 header1">Sonarr</h1>
+									<SonarrIntegration let:stale let:handleSave>
+										<Button disabled={!stale} type="primary-dark" action={handleSave}>Save</Button>
+									</SonarrIntegration>
+								</Container>
 
-						<Container
-							class="bg-primary-800 rounded-xl p-8"
-							on:enter={scrollIntoView({ vertical: 64 })}
-						>
-							<h1 class="mb-4 header1">Radarr</h1>
-							<RadarrIntegration let:stale let:handleSave>
-								<Button disabled={!stale} type="primary-dark" action={handleSave}>Save</Button>
-							</RadarrIntegration>
-						</Container>
-					</Container>
+								<Container class="bg-primary-800 rounded-xl p-8" on:enter={scrollIntoView({ vertical: 64 })}>
+									<h1 class="mb-4 header1">Radarr</h1>
+									<RadarrIntegration let:stale let:handleSave>
+										<Button disabled={!stale} type="primary-dark" action={handleSave}>Save</Button>
+									</RadarrIntegration>
+								</Container>
+							</Container>
+						{/if}
 
 					<Container class="flex flex-col space-y-16">
 						<Container
@@ -310,6 +355,10 @@
 					</Container>
 				</Container>
 			</div>
+		</Tab>
+
+		<Tab {...tab} tab={Tabs.RequestSettings} class="w-full">
+			<RequestSettings />
 		</Tab>
 
 		<Tab {...tab} tab={Tabs.About}>

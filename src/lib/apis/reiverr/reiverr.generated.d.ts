@@ -5,19 +5,30 @@
 
 
 export interface paths {
-  "/users": {
+  "/api/requests": {
+    get: operations["RequestsController_findAllRequests"];
+    post: operations["RequestsController_createRequest"];
+  };
+  "/api/requests/{user_id}": {
+    get: operations["RequestsController_findRequestsByUser"];
+  };
+  "/api/requests/{id}": {
+    delete: operations["RequestsController_deleteRequest"];
+    patch: operations["RequestsController_updateRequest"];
+  };
+  "/api/users": {
     get: operations["UsersController_findAll"];
     post: operations["UsersController_create"];
   };
-  "/users/{id}": {
+  "/api/users/{id}": {
     get: operations["UsersController_findById"];
     put: operations["UsersController_update"];
     delete: operations["UsersController_deleteUser"];
   };
-  "/auth": {
+  "/api/auth": {
     post: operations["AuthController_signIn"];
   };
-  "/": {
+  "/api": {
     get: operations["AppController_getHello"];
   };
 }
@@ -26,6 +37,8 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    CreateRequestDto: Record<string, never>;
+    UpdateRequestDto: Record<string, never>;
     SonarrSettings: {
       apiKey: string;
       baseUrl: string;
@@ -57,6 +70,7 @@ export interface components {
       jellyfin: components["schemas"]["JellyfinSettings"];
       tmdb: components["schemas"]["TmdbSettings"];
     };
+    Request: Record<string, never>;
     UserDto: {
       id: string;
       name: string;
@@ -64,6 +78,7 @@ export interface components {
       onboardingDone?: boolean;
       settings: components["schemas"]["Settings"];
       profilePicture: string;
+      requests?: components["schemas"]["Request"][];
     };
     CreateUserDto: {
       name: string;
@@ -102,6 +117,66 @@ export type external = Record<string, never>;
 
 export interface operations {
 
+  RequestsController_findAllRequests: {
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  RequestsController_createRequest: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateRequestDto"];
+      };
+    };
+    responses: {
+      201: {
+        content: never;
+      };
+    };
+  };
+  RequestsController_findRequestsByUser: {
+    parameters: {
+      path: {
+        user_id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  RequestsController_deleteRequest: {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  RequestsController_updateRequest: {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateRequestDto"];
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
   UsersController_findAll: {
     responses: {
       /** @description All users found */

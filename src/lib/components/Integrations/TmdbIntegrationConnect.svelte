@@ -2,9 +2,9 @@
 	import Container from '../../../Container.svelte';
 	import { tmdbApi } from '../../apis/tmdb/tmdb-api';
 	import Button from '../Button.svelte';
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
 	import { ExternalLink } from 'radix-icons-svelte';
-	import { user } from '../../stores/user.store';
+	import { generalSettings } from '../../stores/generalSettings.store';
 
 	const dispatch = createEventDispatcher<{ connected: null }>();
 
@@ -35,10 +35,10 @@
 				return; // TODO add notification
 			}
 
-			user.updateUser((prev) => ({
+			generalSettings.updateSettings((prev) => ({
 				...prev,
-				settings: {
-					...prev.settings,
+				integrations: {
+					...prev.integrations,
 					tmdb: {
 						userId: account_id,
 						sessionId: access_token

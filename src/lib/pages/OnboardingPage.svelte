@@ -8,8 +8,6 @@
 	import { jellyfinApi, type JellyfinUser } from '../apis/jellyfin/jellyfin-api';
 	import SelectField from '../components/SelectField.svelte';
 	import SelectItem from '../components/SelectItem.svelte';
-	import { sonarrApi } from '../apis/sonarr/sonarr-api';
-	import { radarrApi } from '../apis/radarr/radarr-api';
 	import { useTabs } from '../components/Tab/Tab';
 	import classNames from 'classnames';
 	import { user } from '../stores/user.store';
@@ -17,16 +15,12 @@
 	import Panel from '../components/Panel.svelte';
 	import TmdbIntegrationConnect from '../components/Integrations/TmdbIntegrationConnect.svelte';
 	import JellyfinIntegration from '../components/Integrations/JellyfinIntegration.svelte';
-	import SonarrIntegration from '../components/Integrations/SonarrIntegration.svelte';
-	import RadarrIntegration from '../components/Integrations/RadarrIntegration.svelte';
 	import TmdbIntegration from '../components/Integrations/TmdbIntegration.svelte';
 
 	enum Tabs {
 		Welcome,
 		Tmdb,
 		Jellyfin,
-		Sonarr,
-		Radarr,
 		Complete,
 
 		SelectUser = Jellyfin + 0.1,
@@ -222,54 +216,6 @@
 					</SelectItem>
 				{/each}
 			{/await}
-		</Tab>
-
-		<Tab {...tab} tab={Tabs.Sonarr}>
-			<h1 class="header2 mb-2">Connect to Sonarr</h1>
-			<div class="mb-8">Connect to Sonarr for requesting and managing tv shows.</div>
-
-			<SonarrIntegration let:stale let:handleSave let:empty let:unchanged>
-				<Container direction="horizontal" class="grid grid-cols-2 gap-4 mt-4">
-					<Button type="primary-dark" on:clickOrSelect={() => tab.previous()}>Back</Button>
-					{#if empty || unchanged}
-						<Button focusedChild type="primary-dark" on:clickOrSelect={() => tab.next()}>
-							{empty ? 'Skip' : 'Next'}
-						</Button>
-					{:else}
-						<Button
-							type="primary-dark"
-							disabled={!stale}
-							action={() => handleSave().then(tab.next)}
-						>
-							Connect
-						</Button>
-					{/if}
-				</Container>
-			</SonarrIntegration>
-		</Tab>
-
-		<Tab {...tab} tab={Tabs.Radarr}>
-			<h1 class="header2 mb-2">Connect to Radarr</h1>
-			<div class="mb-8">Connect to Radarr for requesting and managing movies.</div>
-
-			<RadarrIntegration let:stale let:handleSave let:empty let:unchanged>
-				<Container direction="horizontal" class="grid grid-cols-2 gap-4 mt-4">
-					<Button type="primary-dark" on:clickOrSelect={() => tab.previous()}>Back</Button>
-					{#if empty || unchanged}
-						<Button focusedChild type="primary-dark" on:clickOrSelect={() => tab.next()}>
-							{empty ? 'Skip' : 'Next'}
-						</Button>
-					{:else}
-						<Button
-							type="primary-dark"
-							disabled={!stale}
-							action={() => handleSave().then(tab.next)}
-						>
-							Connect
-						</Button>
-					{/if}
-				</Container>
-			</RadarrIntegration>
 		</Tab>
 
 		<Tab {...tab} tab={Tabs.Complete} class={classNames('w-full')}>

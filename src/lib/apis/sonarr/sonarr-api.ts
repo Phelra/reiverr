@@ -6,7 +6,7 @@ import type { components, paths } from './sonarr.generated';
 import { log } from '../../utils';
 import type { Api, ApiAsync } from '../api.interface';
 import { createLocalStorageStore } from '../../stores/localstorage.store';
-import { user } from '../../stores/user.store';
+import { generalSettings } from '../../stores/generalSettings.store';
 
 export const sonarrMonitorOptions = [
 	'unknown',
@@ -66,15 +66,15 @@ export class SonarrApi implements ApiAsync<paths> {
 	}
 
 	getBaseUrl() {
-		return get(user)?.settings?.sonarr.baseUrl || '';
+		return get(generalSettings)?.data?.integrations?.sonarr?.baseUrl || '';
 	}
 
 	getSettings() {
-		return get(user)?.settings.sonarr;
+		return get(generalSettings)?.data?.integrations?.sonarr;
 	}
 
 	getApiKey() {
-		return get(user)?.settings.sonarr.apiKey;
+		return get(generalSettings)?.data?.integrations?.sonarr?.apiKey;
 	}
 
 	tmdbToTvdb = async (tmdbId: number) => {
@@ -149,7 +149,7 @@ export class SonarrApi implements ApiAsync<paths> {
 		const tmdbSeries = await getTmdbSeries(tmdbId);
 
 		if (!tmdbSeries || !tmdbSeries.external_ids.tvdb_id || !tmdbSeries.name)
-			throw new Error('Movie not found');
+			throw new Error('Series not found');
 
 		const options: SonarrSeriesOptions = {
 			title: tmdbSeries.name,
@@ -274,6 +274,8 @@ export class SonarrApi implements ApiAsync<paths> {
 		this.getDownloads().then((downloads) => downloads.filter((d) => d.seriesId === sonarrId)) ||
 		Promise.resolve([]);
 
+		
+
 	removeFromSonarr = (id: number): Promise<boolean> =>
 		this.getClient().then(
 			(client) =>
@@ -360,6 +362,51 @@ export class SonarrApi implements ApiAsync<paths> {
 				client?.GET('/api/v3/qualityprofile', {}).then((r) => r.data || []) || Promise.resolve([])
 		);
 
+		getDownloadProgressForSeason = async (seriesId: number, seasonNumber: number): Promise<{ progress: number, timeLeft: any, estimatedCompletionTime: string} | null> => {
+			const downloads = await this.getDownloads(); // Récupérer tous les téléchargements en cours
+			
+			// Filtrer les téléchargements pour obtenir uniquement ceux de la série et de la saison spécifiées
+			const downloadsForSeason = downloads.filter(
+			  (download) => download.seriesId === seriesId && download.episode?.seasonNumber === seasonNumber
+			);
+			
+			if (downloadsForSeason.length === 0) {
+			  return null; // Aucun téléchargement en cours pour cette série et saison
+			}
+			
+			// Initialiser les variables pour les calculs
+			let totalSize = 0;
+			let totalDownloaded = 0;
+			let timeLeft = null;
+			let estimatedCompletionTime = "";
+			
+			// Parcourir les téléchargements pour cette saison et cumuler les informations
+			downloadsForSeason.forEach((download) => {
+			  const size = download.size || 1; // Utiliser 1 par défaut pour éviter la division par zéro
+			  const sizeLeft = download.sizeleft || 0;
+			  
+			  // On prend la première valeur de estimatedCompletionTime qui est disponible
+			  if (!estimatedCompletionTime && download.estimatedCompletionTime) {
+				estimatedCompletionTime = download.estimatedCompletionTime;
+			  }
+			  
+			  // On prend simplement le temps brut tel qu'il est fourni dans 'timeleft'
+			  timeLeft = download.timeleft;
+			
+			  totalSize += size;
+			  totalDownloaded += size - sizeLeft;
+			});
+			
+			// Calculer le pourcentage de progression global
+			const progress = (totalDownloaded / totalSize) * 100;
+			
+			// Retourner les informations avec le temps brut 'timeleft'
+			return { progress: Math.round(progress), timeLeft, estimatedCompletionTime };
+		  };
+		  
+		  
+		
+
 	// getSonarrEpisodes = async (seriesId: number) => {
 	// 	const episodesPromise =
 	// 		this.getClient()
@@ -391,7 +438,6 @@ export class SonarrApi implements ApiAsync<paths> {
 	// 		episodeFile: episodeFiles.find((file) => file.id === episode.episodeFileId)
 	// 	}));
 	// };
-
 	getHealth = async (
 		baseUrl: string | undefined = undefined,
 		apiKey: string | undefined = undefined
@@ -404,7 +450,7 @@ export class SonarrApi implements ApiAsync<paths> {
 			})
 			.catch((e) => e.response);
 
-	_getSonarrRootFolders = async (
+	getSonarrRootFolders = async (
 		baseUrl: string | undefined = undefined,
 		apiKey: string | undefined = undefined
 	) =>
