@@ -1,27 +1,36 @@
 <script lang="ts">
 	import { tmdbApi } from '../../apis/tmdb/tmdb-api';
-	import { user } from '../../stores/user.store';
+	import { generalSettings } from '../../stores/generalSettings.store';
 	import SelectField from '../SelectField.svelte';
 	import { Trash } from 'radix-icons-svelte';
-	import { derived } from 'svelte/store';
+	import { derived, get } from 'svelte/store';
 	import classNames from 'classnames';
 
-	const userId = derived(user, (user) => user?.settings.tmdb.userId);
+	const tmdbSettings = derived(generalSettings, (settings) => settings?.data?.integrations?.tmdb);
 
-	$: connectedTmdbAccount = !!$userId && tmdbApi.getAccountDetails();
+	let connectedTmdbAccount;
+	$: {
+		const userId = $tmdbSettings?.userId;
+		if (userId) {
+			connectedTmdbAccount = tmdbApi.getAccountDetails();
+		} else {
+			connectedTmdbAccount = null;
+		}
+	}
 
 	async function handleDisconnectTmdb() {
-		return user.updateUser((prev) => ({
+		await generalSettings.updateSettings((prev) => ({
 			...prev,
-			settings: {
-				...prev.settings,
+			integrations: {
+				...prev.integrations,
 				tmdb: {
-					...prev.settings.tmdb,
+					...prev.integrations.tmdb,
 					userId: '',
 					sessionId: ''
 				}
 			}
 		}));
+	connectedTmdbAccount = null;
 	}
 </script>
 
@@ -31,6 +40,8 @@
 			Connected to
 			<Trash slot="icon" let:size let:iconClass {size} class={classNames(iconClass, '')} />
 		</SelectField>
+	{:else}
+		<p>Not connected to TMDb.</p>
 	{/if}
 	<slot connected={!!tmdbAccount} />
 {/await}
