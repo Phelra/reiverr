@@ -115,6 +115,35 @@ export class RadarrApi implements Api<paths> {
 		);
 	};
 
+	updateMovieInRadarr = async (
+		radarrItem: any,
+		_options: {
+		  qualityProfileId?: number;
+		  minimumAvailability?: MovieAvailability;
+		  monitored?: boolean;
+		} = {}
+	  ) => {
+		try {
+		  const options: RadarrMovieOptions = {
+			...radarrItem,
+			qualityProfileId: _options.qualityProfileId || radarrItem.qualityProfileId || 0,
+			monitored: _options.monitored ?? radarrItem.monitored,
+			minimumAvailability: _options.minimumAvailability || radarrItem.minimumAvailability || 'released',
+		  };
+	  
+		  return this.getClient()
+			?.PUT('/api/v3/movie/{id}', {
+			  params: { path: { id: radarrItem.id } },
+			  query: { moveFiles: false },
+			  body: options
+			})
+			.then((r) => r.data) || Promise.resolve(undefined);
+		} catch (error) {
+		  throw new Error('Failed to update movie in Radarr');
+		}
+	  };
+	  
+			
 	cancelDownloadRadarrMovie = async (downloadId: number) => {
 		const deleteResponse = await this.getClient()
 			?.DELETE('/api/v3/queue/{id}', {

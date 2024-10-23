@@ -292,21 +292,24 @@ async function selectEpisodeManually(sonarrItem: any, seasonNumber: number) {
     });
 }
 
-async function checkQuotaAndCreateRequest(season: number, sonarrItem: any, episode: number, choice: number ) {
-		
-		const userId = currentUser?.id;
-		const settings = get(generalSettings);
-		const days = settings.data?.requests?.delayInDays ?? 30;
-		const userRequestCount = await reiverrApi.countRequestsInPeriodForUser(userId, days);
-		const maxRequests = settings.data?.requests?.defaultLimitTV ?? 3;
+async function checkQuotaAndCreateRequest(season: number, sonarrItem: any, episode: number, choice: number) {
+	const userId = currentUser?.id;
+	const settings = get(generalSettings);
 
-		if (currentUser?.isAdmin || userRequestCount < maxRequests) {
-			const remainingRequests = maxRequests - userRequestCount;
-			createApprovedRequestDialog(remainingRequests, days, maxRequests, sonarrItem, season, choice, episode);
-		} else {
-			createPendingRequestDialog(season,episode);
-		}
+	const days = settings.data?.requests?.delayInDays ?? 30;
+	const maxRequests = settings.data?.requests?.defaultLimitTV ?? 3;
+	const userRequestCount = await reiverrApi.countRequestsInPeriodForUser(userId, days);
+	const remainingRequests = Math.max(0, maxRequests - userRequestCount);
+	const approvalMethod = settings.data?.requests.approvalMethod ?? 0;
+	const canAutoApprove = currentUser?.isAdmin || (userRequestCount < maxRequests);
+
+	if (canAutoApprove) {
+	createApprovedRequestDialog(remainingRequests, days, maxRequests, sonarrItem, season, choice, episode, approvalMethod);
+	} else {
+	createPendingRequestDialog(season, episode);
+	}
 }
+
 
 async function automaticDownloadSeason(sonarrItem: any, season: number) { 
 		modalStack.closeTopmost();
@@ -329,10 +332,31 @@ async function automaticDownloadSeason(sonarrItem: any, season: number) {
 	}
 }
 
-function createApprovedRequestDialog(remainingRequests: number, days: number, maxRequests: number, sonarrItem: any, season: number, choice: number, selectedEpisode?: number) {
+function createApprovedRequestDialog(
+    remainingRequests: number, 
+    days: number, 
+    maxRequests: number, 
+    sonarrItem: any, 
+    season: number, 
+    choice: number, 
+    selectedEpisode?: number, 
+    approvalMethod?: number
+) {
+    let bodyMessage = '';
+
+    if (currentUser?.isAdmin) {
+        bodyMessage = `As an administrator, you can approve this download without any limitations.`;
+    } else if (approvalMethod === 1) {
+        bodyMessage = `Your request will be automatically approved, and the media search will begin.`;
+    } else if (remainingRequests > 0 && approvalMethod === 0) {
+        bodyMessage = `You have ${remainingRequests}/${maxRequests} requests remaining that will be automatically approved. Requests reset every ${days} days.`;
+    } else {
+        bodyMessage = `You have reached your limit of ${maxRequests} requests. Requests reset every ${days} days. Further requests will require admin approval.`;
+    }
+
     createModal(ConfirmDialog, {
-        header: 'Confirm Automatic Download',
-        body: `You have ${remainingRequests}/${maxRequests} requests remaining that will be automatically approved. Requests reset every ${days} days. After reaching this limit, further requests will require admin approval.`,
+        header: 'Confirm Automatic Search',
+        body: bodyMessage,
         confirm: async () => {
             if (choice === 1) {
                 // Choice 1: Download the entire season
@@ -354,6 +378,7 @@ function createApprovedRequestDialog(remainingRequests: number, days: number, ma
         }
     });
 }
+
 
 	function createPendingRequestDialog(season: number, episode: number) {
 		createModal(ConfirmDialog, {

@@ -40,11 +40,12 @@ export class SettingsService {
           },
         },
         requests: {
-          defaultLimitMovies: 10,
-          defaultLimitTV: 5,
-          delayInDays: 7,
           allowRequests: true,
-          
+          approvalMethod:0,
+          setLimit:false,
+          defaultLimitMovies: 0,
+          defaultLimitTV: 0,
+          delayInDays: 7,
         },
       });
       

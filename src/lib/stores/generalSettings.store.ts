@@ -37,10 +37,12 @@ interface Integrations {
 }
 
 interface RequestSettings {
+  allowRequests: boolean;
+  approvalMethod: number;
+  setLimit: boolean;
   defaultLimitMovies: number;
   defaultLimitTV: number;
   delayInDays: number;
-  allowRequests: boolean;
 }
 
 interface GeneralSettingsData {

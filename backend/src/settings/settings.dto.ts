@@ -28,9 +28,11 @@ export class UpdateSettingsDto {
 
   @ApiProperty({ type: Object })
   requests: {
+    allowRequests: boolean;
+    approvalMethod: number;
+    setLimit: boolean;
     defaultLimitMovies: number;
     defaultLimitTV: number;
     delayInDays: number;
-    allowRequests: boolean;
   };
 }

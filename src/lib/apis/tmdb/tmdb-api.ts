@@ -251,6 +251,27 @@ export class TmdbApi implements Api<paths> {
 			})
 			.then((res) => res.data?.results || []);
 
+	getCollection = async (collectionId: number) => {
+		return this.getClient()
+			?.GET('/3/collection/{collection_id}', {
+				params: {
+					path: {
+						collection_id: collectionId
+					},
+					query: {
+						append_to_response: 'images,parts',
+						language: get(generalSettings)?.data?.language || 'en'
+					}
+				}
+			})
+			.then((res) => res.data)
+			.catch((error) => {
+				console.error(`Error fetching collection with ID ${collectionId}:`, error);
+				throw new Error(`Unable to fetch collection ${collectionId}`);
+			});
+	};
+
+
 	getEpisode = (
 		seriesId: number,
 		season: number,

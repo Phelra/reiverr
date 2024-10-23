@@ -156,6 +156,7 @@
 
 	<Container class="flex-1 grid w-full overflow-y-auto scrollbar-hide relative pb-16 px-32">
 		<Tab {...tab} tab={Tabs.Interface} class="w-full">
+			<h2 class="text-xl font-bold text-secondary-100 py-4">General Settings</h2>
 			<div class="flex items-center justify-between text-lg font-medium text-secondary-100 py-2">
 				<label class="mr-2">Animate scrolling</label>
 				<Toggle
@@ -178,6 +179,16 @@
 					checked={$localSettings.checkForUpdates}
 					on:change={({ detail }) =>
 						localSettings.update((p) => ({ ...p, checkForUpdates: detail }))}
+				/>
+			</div>
+
+			<h2 class="text-xl font-bold text-secondary-100 py-4">Customization</h2>
+			<div class="flex items-center justify-between text-lg font-medium text-secondary-100 py-2">
+				<label class="mr-2">Show rating on card</label>
+				<Toggle
+					checked={$localSettings.showRatingOnCard}
+					on:change={({ detail }) =>
+						localSettings.update((p) => ({ ...p, showRatingOnCard: detail }))}
 				/>
 			</div>
 		</Tab>

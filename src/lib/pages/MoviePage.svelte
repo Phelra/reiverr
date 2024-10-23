@@ -4,7 +4,7 @@
   import { tmdbApi } from '../apis/tmdb/tmdb-api';
   import { PLATFORM_WEB, TMDB_IMAGES_ORIGINAL } from '../constants';
   import classNames from 'classnames';
-  import { Cross1, DotFilled, Download, ExternalLink, File, Play, Plus, Trash, Pencil2 } from 'radix-icons-svelte';
+  import { Cross1, DotFilled, Download, ExternalLink, File, Play, Plus, Trash, Pencil2, Reload } from 'radix-icons-svelte';
   import Button from '../components/Button.svelte';
   import { jellyfinApi } from '../apis/jellyfin/jellyfin-api';
   import { type MovieDownload, type MovieFileResource, radarrApi } from '../apis/radarr/radarr-api';
@@ -38,6 +38,7 @@
   const loadingMessage = writable("");
 
   $: recommendations = tmdbApi.getMovieRecommendations(tmdbId);
+  $: collection = tmdbMovie.then(movie => movie?.belongs_to_collection ? tmdbApi.getCollection(movie.belongs_to_collection.id) : null); //rajouter
   $: allowRequests = $generalSettings?.data?.requests?.allowRequests ?? true;
 
 
@@ -93,26 +94,23 @@
     try {
         const tmdbMovie = await tmdbApi.getTmdbMovie(tmdbId);
         const requests = get(generalSettings).data?.requests;
-        const loadingMessage = writable("");
 
-        if (currentUser?.isAdmin) {
-            await handleMovieDownloadWithModal(tmdbMovie, loadingMessage);
+        const userId = currentUser?.id;
+        const userRequestCount = await reiverrApi.countRequestsInPeriodForUser(userId, requests.delayInDays ?? 7);
+        const remainingRequests = Math.max(0, (requests.defaultLimitMovies ?? 0) - userRequestCount);
+        const approvalMethod = requests.approvalMethod ?? 0;
+
+        const canAutoApprove = currentUser?.isAdmin || approvalMethod === 1 || (remainingRequests > 0 && approvalMethod === 0);
+
+        if (canAutoApprove) {
+            createConfirmQuotaDialog(remainingRequests, requests.delayInDays, requests.defaultLimitMovies, tmdbMovie,approvalMethod);
         } else {
-            const userId = currentUser?.id;
-            const userRequestCount = await reiverrApi.countRequestsInPeriodForUser(userId, requests.delayInDays ?? 7);
-            const remainingRequests = (requests.defaultLimitMovies ?? 5) - userRequestCount;
-
-            if (remainingRequests > 0) {
-                createConfirmQuotaDialog(remainingRequests, requests.delayInDays, requests.defaultLimitMovies, tmdbMovie);
-            } else {
-                createConfirmRequestDialog();
-            }
+            createConfirmRequestDialog();
         }
     } catch (error) {
         createErrorDialog('Error handling request', handleRequest);
     }
 }
-
 
   async function handleMovieDownloadWithModal(movie, loadingMessage) {
     createModal(SpinnerModal, {
@@ -160,13 +158,25 @@
     });
 }
 
-  function createConfirmQuotaDialog(requestsRemaining: Number, days: Number, maxRequests: Number, movie: any) {
-    createModal(ConfirmDialog, {
-      header: 'Confirm Automatic Download',
-      body: `You have ${requestsRemaining}/${maxRequests} requests remaining. Requests reset every ${days} days.`,
-      confirm: () => handleMovieDownloadWithModal(movie, loadingMessage)
-    });
+function createConfirmQuotaDialog(requestsRemaining: number, days: number, maxRequests: number, movie: any, approvalMethod: number) {
+  let bodyMessage = '';
+
+  if (currentUser?.isAdmin) {
+    bodyMessage = `As an administrator, you can approve this download without any limitations.`;
+  } else if (approvalMethod === 1) {
+    bodyMessage = `Your request will be automatically approved, and the media search will begin.`;
+  } else if (requestsRemaining > 0 && approvalMethod === 0) {
+    bodyMessage = `You have ${requestsRemaining}/${maxRequests} requests remaining. Requests reset every ${days} days.`;
   }
+
+  createModal(ConfirmDialog, {
+    header: 'Confirm Automatic Search',
+    body: bodyMessage,
+    confirm: () => handleMovieDownloadWithModal(movie, loadingMessage)
+  });
+}
+
+
 
   function createConfirmRequestDialog() {
     createModal(ConfirmDialog, {
@@ -218,28 +228,42 @@
 const onGrabRelease = () => setTimeout(() => (radarrDownloads = getDownloads(radarrItem)), 8000);
 
 async function editRadarrParameters() {
-  // Log le début de la fonction
-  console.log("Début de la fonction editRadarrParameters");
+    try {
+        const [tmdbMovieData, radarrItemData] = await Promise.all([tmdbMovie, radarrItem]);
 
-  return Promise.all([tmdbMovie, radarrItem]).then(([tmdbMovie, radarrItem]) => {
-    console.log("tmdbMovie reçu :", tmdbMovie);
-    console.log("radarrItem reçu :", radarrItem);
+        if (!radarrItemData?.id) {
+            throw new Error("The movie does not exist in Radarr.");
+        }
 
-    createModal(MMEditToRadarrDialog, {
-      title: tmdbMovie?.title || '',
-      tmdbId,
-      backdropUri: tmdbMovie?.backdrop_path || '',
-      radarrItem,
-      onComplete: handleAddedToRadarr
-    });
-
-    console.log("Modal MMEditToRadarrDialog créé avec succès");
-  }).catch((error) => {
-    console.error("Erreur lors de l'édition des paramètres Radarr :", error);
-  });
+        createModal(MMEditToRadarrDialog, {
+            title: tmdbMovieData?.title || '',
+            radarrItem: radarrItemData,
+            backdropUri: tmdbMovieData?.backdrop_path || ''
+        });
+    } catch (error) {
+        createErrorDialog('Error while editing Radarr parameters', editRadarrParameters);
+    }
 }
 
 
+async function downloadManually() {
+    try {
+        let radarrItemData = await radarrItemP;
+
+        if (!radarrItemData || !radarrItemData.id) {
+            radarrItemData = await getOrAddMovieToRadarr(tmdbId, tmdbMovie.title);
+        }
+
+        if (radarrItemData && radarrItemData.id) {
+            createModal(MovieMediaManagerModal, { radarrItem: radarrItemData, onGrabRelease });
+        } else {
+            throw new Error('Radarr item is invalid or missing ID.');
+        }
+    } catch (error) {
+        console.error('Error during manual download:', error);
+        createErrorDialog('Error during manual download', downloadManually);
+    }
+}
 
 
 </script>
@@ -312,10 +336,16 @@ async function editRadarrParameters() {
                   <Plus size={19} slot="icon" />
                 </Button>
               {/if}
-              {#if currentUser?.isAdmin && !$requestExists && !jellyfinItem}
+              {#if currentUser?.isAdmin && radarrItem}
                 <Button class="mr-4" on:clickOrSelect={editRadarrParameters} disabled={!allowRequests}>
                   Edit
                   <Pencil2 size={19} slot="icon" />
+                </Button>
+              {/if}
+              {#if currentUser?.isAdmin && radarrItem}
+                <Button class="mr-4" on:clickOrSelect={downloadManually} disabled={!allowRequests}>
+                  Search Manually
+                  <Reload size={19} slot="icon" />
                 </Button>
               {/if}
               <!--{#if radarrItem}-->
@@ -370,9 +400,20 @@ async function editRadarrParameters() {
             <TmdbCard item={recommendation} on:enter={scrollIntoView({ horizontal: 128 })} />
           {/each}
         </Carousel>
-      {:else}
       {/if}
     {/await}
+
+    {#await collection then collectionData}
+      {#if collectionData}
+        <Carousel scrollClass="px-32" class="mb-8">
+          <div slot="header">{collectionData.name}</div>
+          {#each collectionData.parts as part}
+            <TmdbCard item={part} on:enter={scrollIntoView({ horizontal: 128 })} />
+          {/each}
+        </Carousel>
+      {/if}
+    {/await}
+
     </Container>
 
     {#await tmdbMovie then movie}
