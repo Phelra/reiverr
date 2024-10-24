@@ -99,8 +99,10 @@
         const userRequestCount = await reiverrApi.countRequestsInPeriodForUser(userId, requests.delayInDays ?? 7);
         const remainingRequests = Math.max(0, (requests.defaultLimitMovies ?? 0) - userRequestCount);
         const approvalMethod = requests.approvalMethod ?? 0;
-
-        const canAutoApprove = currentUser?.isAdmin || approvalMethod === 1 || (remainingRequests > 0 && approvalMethod === 0);
+        const setLimit = requests.setLimit ?? false;
+        const canAutoApprove = currentUser?.isAdmin || approvalMethod === 1 || (remainingRequests > 0 && approvalMethod === 0 && setLimit == true);
+        console.log(canAutoApprove);
+        console.log(canAutoApprove);
 
         if (canAutoApprove) {
             createConfirmQuotaDialog(remainingRequests, requests.delayInDays, requests.defaultLimitMovies, tmdbMovie,approvalMethod);

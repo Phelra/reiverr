@@ -301,7 +301,8 @@ async function checkQuotaAndCreateRequest(season: number, sonarrItem: any, episo
 	const userRequestCount = await reiverrApi.countRequestsInPeriodForUser(userId, days);
 	const remainingRequests = Math.max(0, maxRequests - userRequestCount);
 	const approvalMethod = settings.data?.requests.approvalMethod ?? 0;
-	const canAutoApprove = currentUser?.isAdmin || (userRequestCount < maxRequests);
+	const setLimit = settings.data?.requests.setLimit ?? false;
+	const canAutoApprove = currentUser?.isAdmin || (remainingRequests > 0 && approvalMethod === 0 && setLimit == true);
 
 	if (canAutoApprove) {
 	createApprovedRequestDialog(remainingRequests, days, maxRequests, sonarrItem, season, choice, episode, approvalMethod);

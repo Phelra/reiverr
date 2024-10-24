@@ -41,8 +41,8 @@ export class JellyfinApi implements Api<paths> {
 		return get(generalSettings)?.data?.integrations?.jellyfin?.baseUrl || '';
 	}
 
-	getContinueWatching = async (type?: Type): Promise<JellyfinItem[] | undefined> =>
-		this.getClient()
+	getContinueWatching = async (): Promise<JellyfinItem[] | undefined> => {
+		const items = await this.getClient()
 			.GET('/Users/{userId}/Items/Resume', {
 				params: {
 					path: {
@@ -50,12 +50,13 @@ export class JellyfinApi implements Api<paths> {
 					},
 					query: {
 						mediaTypes: ['Video'],
-						fields: ['ProviderIds', 'Genres'],
-						...(type ? { parentId: await this.getViewId(type) } : {})
+						fields: ['ProviderIds', 'Genres']
 					}
 				}
 			})
 			.then((r) => r.data?.Items || []);
+			return items?.filter(item => item.Type === 'Movie');
+	};
 
 	getContinueWatchingSeries = async () => {
 		const seriesIds = [
